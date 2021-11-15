@@ -191,7 +191,7 @@ final class SessionEngine {
             logger.debug("Could not find session for topic \(topic)")
             return
         }
-        relayer.respond(topic: topic, payload: response) { [weak self] error in
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { [weak self] error in
             if error != nil {
                 self?.logger.debug("Could not send session payload, error: \(error)")
             } else {
@@ -317,8 +317,8 @@ final class SessionEngine {
         }
         do {
             try validateNotification(session: session, params: notificationParams)
-            let response = JSONRPCResponse<Bool>(id: requestId, result: true)
-            relayer.respond(topic: topic, payload: response) { [unowned self] error in
+            let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+            relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { [unowned self] error in
                 if let error = error {
                     logger.error(error)
                 } else {
@@ -355,8 +355,8 @@ final class SessionEngine {
             respond(error: error, requestId: requestId, topic: topic)
             return
         }
-        let response = JSONRPCResponse<Bool>(id: requestId, result: true)
-        relayer.respond(topic: topic, payload: response) { [unowned self] error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { [unowned self] error in
             if let error = error {
                 logger.error(error)
             } else {
@@ -380,8 +380,8 @@ final class SessionEngine {
             return
         }
         session.permissions = upgradeParams.permissions
-        let response = JSONRPCResponse<Bool>(id: requestId, result: true)
-        relayer.respond(topic: topic, payload: response) { [unowned self] error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { [unowned self] error in
             if let error = error {
                 logger.error(error)
             } else {
@@ -392,8 +392,8 @@ final class SessionEngine {
     }
     
     private func handleSessionPing(topic: String, requestId: Int64) {
-        let response = JSONRPCResponse<Bool>(id: requestId, result: true)
-        relayer.respond(topic: topic, payload: response) { error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: topic, response: .response(response)) { error in
             //todo
         }
     }
@@ -433,7 +433,7 @@ final class SessionEngine {
     private func respond(error: WalletConnectError, requestId: Int64, topic: String) {
         let jsonrpcError = JSONRPCErrorResponse.Error(code: error.code, message: error.description)
         let response = JSONRPCErrorResponse(id: requestId, error: jsonrpcError)
-        relayer.respond(topic: topic, payload: response) { [weak self] responseError in
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.error(response)) { [weak self] responseError in
             if let responseError = responseError {
                 self?.logger.error("Could not respond with error: \(responseError)")
             } else {
@@ -486,8 +486,8 @@ final class SessionEngine {
         sequencesStore.update(topic: proposal.topic, newTopic: settledTopic, sequenceState: .settled(settledSession))
         wcSubscriber.setSubscription(topic: settledTopic)
         wcSubscriber.removeSubscription(topic: proposal.topic)
-        let wcResponse = JSONRPCResponse<Bool>(id: requestId, result: true)
-        relayer.respond(topic: topic, payload: wcResponse) { error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { error in
             print(error)
         }
         onSessionApproved?(settledSession)

@@ -178,7 +178,7 @@ final class PairingEngine {
             let topic = subscriptionPayload.topic
             switch subscriptionPayload.clientSynchJsonRpc.params {
             case .pairingApprove(let approveParams):
-                handlePairingApprove(approveParams: approveParams, pendingTopic: topic, reqestId: requestId)
+                handlePairingApprove(approveParams: approveParams, pendingTopic: topic, requestId: requestId)
             case .pairingReject(_):
                 fatalError("Not Implemented")
             case .pairingUpdate(let updateParams):
@@ -208,8 +208,8 @@ final class PairingEngine {
             respond(error: error, requestId: requestId, topic: topic)
             return
         }
-        let response = JSONRPCResponse<Bool>(id: requestId, result: true)
-        relayer.respond(topic: topic, payload: response) { [unowned self] error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { [unowned self] error in
             if let error = error {
                 logger.error(error)
             } else {
@@ -221,8 +221,8 @@ final class PairingEngine {
     }
     
     private func handlePairingPing(topic: String, requestId: Int64) {
-        let response = JSONRPCResponse<Bool>(id: requestId, result: true)
-        relayer.respond(topic: topic, payload: response) { error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { error in
             //todo
         }
     }
@@ -241,8 +241,8 @@ final class PairingEngine {
         if let pairingAgreementKeys = crypto.getAgreementKeys(for: sessionProposal.signal.params.topic) {
             crypto.set(agreementKeys: pairingAgreementKeys, topic: sessionProposal.topic)
         }
-        let response = JSONRPCResponse<Bool>(id: requestId, result: true)
-        relayer.respond(topic: topic, payload: response) { [weak self] error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: topic, response: JsonRpcResponseTypes.response(response)) { [weak self] error in
             self?.onSessionProposal?(sessionProposal)
         }
     }
@@ -259,7 +259,7 @@ final class PairingEngine {
 //        }
     }
     
-    private func handlePairingApprove(approveParams: PairingType.ApproveParams, pendingTopic: String, reqestId: Int64) {
+    private func handlePairingApprove(approveParams: PairingType.ApproveParams, pendingTopic: String, requestId: Int64) {
         logger.debug("Responder Client approved pairing on topic: \(pendingTopic)")
         guard case let .pending(pairingPending) = sequencesStore.get(topic: pendingTopic) else {
                   logger.debug("Could not find pending pairing associated with topic \(pendingTopic)")
@@ -289,8 +289,8 @@ final class PairingEngine {
         sequencesStore.update(topic: proposal.topic, newTopic: settledTopic, sequenceState: .settled(settledPairing))
         wcSubscriber.setSubscription(topic: settledTopic)
         wcSubscriber.removeSubscription(topic: proposal.topic)
-        let response = JSONRPCResponse<Bool>(id: reqestId, result: true)
-        relayer.respond(topic: proposal.topic, payload: response) { [weak self] error in
+        let response = JSONRPCResponse<AnyCodable>(id: requestId, result: AnyCodable(true))
+        relayer.respond(topic: proposal.topic, response: JsonRpcResponseTypes.response(response)) { [weak self] error in
             self?.onPairingApproved?(settledPairing, pendingTopic)
         }
     }
@@ -306,7 +306,7 @@ final class PairingEngine {
     private func respond(error: WalletConnectError, requestId: Int64, topic: String) {
         let jsonrpcError = JSONRPCErrorResponse.Error(code: error.code, message: error.description)
         let response = JSONRPCErrorResponse(id: requestId, error: jsonrpcError)
-        relayer.respond(topic: topic, payload: response) { [weak self] responseError in
+        relayer.respond(topic: topic, response: .error(response)) { [weak self] responseError in
             if let responseError = responseError {
                 self?.logger.error("Could not respond with error: \(responseError)")
             } else {
